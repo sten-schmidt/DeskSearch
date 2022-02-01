@@ -39,8 +39,8 @@ public class DeskSearch {
 
 	public static void main(String... args) {
 		try {
-			
-			if(args.length == 0) {
+
+			if (args.length == 0) {
 				System.out.println("Usage");
 				System.out.println("====================================================================");
 				System.out.println("Create new Database-File");
@@ -57,7 +57,7 @@ public class DeskSearch {
 				System.out.println("");
 				System.exit(-1);
 			}
-			
+
 			String command = args[0].trim();
 			DeskSearch deskSearch = new DeskSearch();
 
@@ -137,6 +137,11 @@ public class DeskSearch {
 			try (var con = DriverManager.getConnection(properties.getProperty("url"));
 					var stm = con.createStatement();) {
 
+				try (PreparedStatement st = con.prepareStatement("delete from FILES where PATH like ? ESCAPE '!'")) {
+					st.setString(1, path + "%");
+					st.executeUpdate();
+				}
+
 				Files.walk(Paths.get(path)).filter(Files::isRegularFile).forEach(file -> {
 
 					System.out.println(file);
@@ -158,7 +163,7 @@ public class DeskSearch {
 						if (file.toString().toLowerCase().endsWith(".pdf")) {
 							fulltext = PdfReader.readPDF(file.toString());
 						}
-						
+
 						if (file.toString().toLowerCase().endsWith(".docx")) {
 							try {
 								fulltext = new DocxReader().getText(file.toString());
@@ -166,7 +171,7 @@ public class DeskSearch {
 								e.printStackTrace();
 							}
 						}
-						
+
 						if (file.toString().toLowerCase().endsWith(".doc")) {
 							try {
 								fulltext = new DocReader().getText(file.toString());
@@ -174,7 +179,7 @@ public class DeskSearch {
 								e.printStackTrace();
 							}
 						}
-						
+
 						try (PreparedStatement st = con.prepareStatement(insertQuery)) {
 							st.setString(1, file.getFileName().toString());
 							st.setString(2, file.toString());
