@@ -1,4 +1,4 @@
-package net.stenschmidt.desksearch;
+package net.stenschmidt.desksearch.parser;
 
 import java.io.File;
 import java.io.IOException;
@@ -6,9 +6,9 @@ import java.io.IOException;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 
-public class DocParser {
+public class PdfReader {
 
-    static String readPDF(String pdfFilePath) throws IOException {
+    public static String readPDF(String pdfFilePath) throws IOException {
         String result = "";
         try (PDDocument doc = PDDocument.load(new File(pdfFilePath));) {
             result = new PDFTextStripper().getText(doc);

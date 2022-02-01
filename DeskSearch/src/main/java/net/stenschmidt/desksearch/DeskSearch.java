@@ -19,6 +19,10 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Properties;
 
+import net.stenschmidt.desksearch.parser.PdfReader;
+import net.stenschmidt.desksearch.parser.DocReader;
+import net.stenschmidt.desksearch.parser.DocxReader;
+
 public class DeskSearch {
 
 	private static final String propertiesFile = "DeskSearch.properties";
@@ -150,9 +154,27 @@ public class DeskSearch {
 								.append("(?,?,?,?,?,?,?,?);").toString();
 
 						String fulltext = "";
+
 						if (file.toString().toLowerCase().endsWith(".pdf")) {
-							fulltext = DocParser.readPDF(file.toString());
+							fulltext = PdfReader.readPDF(file.toString());
 						}
+						
+						if (file.toString().toLowerCase().endsWith(".docx")) {
+							try {
+								fulltext = new DocxReader().getText(file.toString());
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+						
+						if (file.toString().toLowerCase().endsWith(".doc")) {
+							try {
+								fulltext = new DocReader().getText(file.toString());
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+						
 						try (PreparedStatement st = con.prepareStatement(insertQuery)) {
 							st.setString(1, file.getFileName().toString());
 							st.setString(2, file.toString());
