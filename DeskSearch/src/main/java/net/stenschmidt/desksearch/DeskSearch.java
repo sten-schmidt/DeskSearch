@@ -259,6 +259,9 @@ public class DeskSearch {
 
 	private void startServer() throws SQLException {
 		System.out.println("Starting Server...");
-		org.h2.tools.Server.main();
+		String[] serverArgs = new String[2];
+		serverArgs[0] = "-web";
+		serverArgs[1] = "-tcp";
+		org.h2.tools.Server.main(serverArgs);
 	}
 }
