@@ -47,7 +47,7 @@ public class DeskSearch {
 				System.out.println("java -jar DeskSearch.jar setup");
 				System.out.println("");
 				System.out.println("Start H2 Database-Server");
-				System.out.println("java -jar DeskSearch.jar start");
+				System.out.println("java -jar DeskSearch.jar server");
 				System.out.println("");
 				System.out.println("Add files from path to the fulltext index");
 				System.out.println("java -jar DeskSearch.jar index <Path to files>");
@@ -66,7 +66,7 @@ public class DeskSearch {
 			}
 
 			switch (command) {
-			case "start":
+			case "server":
 				deskSearch.startServer();
 				break;
 			case "search":
@@ -92,7 +92,6 @@ public class DeskSearch {
 	void setup() throws SQLException, URISyntaxException {
 		String dbFilePath = properties.getProperty("dbfile");
 		if (!new File(dbFilePath).exists()) {
-			// TODO Datenbankdatei anlegen + Setup ausführen
 			String setupConnection = "jdbc:h2:" + getInstallDir() + "/DeskSearch.db";
 			String sqlCmd = "";
 			System.out.println("Setup Connection: " + setupConnection);
@@ -115,7 +114,6 @@ public class DeskSearch {
 				try (PreparedStatement st = con.prepareStatement(insertQuery)) {
 					st.setString(1, "dummy");
 					st.setString(2, "c:\\dummy.pdf");
-					// st.setString(3, ""); //Description
 					st.setString(3, "dummy foo bar"); // Fulltext
 					st.setTimestamp(4, tsNow);
 					st.setTimestamp(5, tsNow);
@@ -159,27 +157,34 @@ public class DeskSearch {
 								.append("(?,?,?,?,?,?,?,?);").toString();
 
 						String fulltext = "";
-
-						if (file.toString().toLowerCase().endsWith(".pdf")) {
-							fulltext = PdfReader.readPDF(file.toString());
+						
+						int dotPos = file.toString().lastIndexOf('.');
+						String fileExtension = file.toString().toLowerCase().substring(dotPos);
+						
+						switch (fileExtension) {
+							case ".pdf":
+								fulltext = PdfReader.readPDF(file.toString());
+								break;
+							case ".dotx":
+							case ".dotm":
+							case ".docx":
+							case ".docm":
+								try {
+									fulltext = new DocxReader().getText(file.toString());
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+								break;
+							case "dot":
+							case "doc":
+								try {
+									fulltext = new DocReader().getText(file.toString());
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+								break;
 						}
-
-						if (file.toString().toLowerCase().endsWith(".docx")) {
-							try {
-								fulltext = new DocxReader().getText(file.toString());
-							} catch (Exception e) {
-								e.printStackTrace();
-							}
-						}
-
-						if (file.toString().toLowerCase().endsWith(".doc")) {
-							try {
-								fulltext = new DocReader().getText(file.toString());
-							} catch (Exception e) {
-								e.printStackTrace();
-							}
-						}
-
+						
 						try (PreparedStatement st = con.prepareStatement(insertQuery)) {
 							st.setString(1, file.getFileName().toString());
 							st.setString(2, file.toString());
@@ -253,7 +258,6 @@ public class DeskSearch {
 	static void parseProperties() throws FileNotFoundException, IOException {
 		try (var stream = new BufferedInputStream(new FileInputStream(propertiesFile));) {
 			properties.load(stream);
-			System.out.println("properties parsed: url = " + properties.getProperty("url"));
 		}
 	}
 
