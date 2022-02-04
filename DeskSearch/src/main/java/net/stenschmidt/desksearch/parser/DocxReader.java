@@ -12,7 +12,7 @@ public class DocxReader {
 		try (BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(filePath));
 				XWPFDocument doc = new XWPFDocument(bufferedInputStream);
 				XWPFWordExtractor wordExtractor = new XWPFWordExtractor(doc);) {
-			return wordExtractor.getText();
+			return wordExtractor.getText().trim();
 		}
 	}
 

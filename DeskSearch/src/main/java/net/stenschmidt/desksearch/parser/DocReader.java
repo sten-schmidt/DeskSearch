@@ -12,7 +12,7 @@ public class DocReader {
 		try (BufferedInputStream bufferedInputStream = new BufferedInputStream(new FileInputStream(filePath));
 				HWPFDocument doc = new HWPFDocument(bufferedInputStream);
 				WordExtractor wordExtractor = new WordExtractor(doc);) {
-			return wordExtractor.getText();
+			return wordExtractor.getText().trim();
 		}
 	}
 
