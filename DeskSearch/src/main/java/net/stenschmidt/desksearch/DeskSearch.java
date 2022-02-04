@@ -9,6 +9,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -20,6 +21,7 @@ import java.sql.Timestamp;
 import java.util.Properties;
 
 import net.stenschmidt.desksearch.parser.PdfReader;
+import net.stenschmidt.desksearch.parser.TextReader;
 import net.stenschmidt.desksearch.parser.DocReader;
 import net.stenschmidt.desksearch.parser.DocxReader;
 
@@ -157,9 +159,14 @@ public class DeskSearch {
 								.append("(?,?,?,?,?,?,?,?);").toString();
 
 						String fulltext = "";
+						String fileExtension = "";
 						
-						int dotPos = file.toString().lastIndexOf('.');
-						String fileExtension = file.toString().toLowerCase().substring(dotPos);
+						try {
+							int dotPos = file.toString().lastIndexOf('.');
+							fileExtension = file.toString().toLowerCase().substring(dotPos);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
 						
 						switch (fileExtension) {
 							case ".pdf":
@@ -175,14 +182,23 @@ public class DeskSearch {
 									e.printStackTrace();
 								}
 								break;
-							case "dot":
-							case "doc":
+							case ".dot":
+							case ".doc":
 								try {
 									fulltext = new DocReader().getText(file.toString());
 								} catch (Exception e) {
 									e.printStackTrace();
 								}
 								break;
+							case ".txt":
+							case ".info":
+							case ".nfo":
+							case ".xml":
+								try {
+									fulltext = new TextReader().getText(file.toString());
+								} catch (Exception e) {
+									e.printStackTrace();	
+								}
 						}
 						
 						try (PreparedStatement st = con.prepareStatement(insertQuery)) {
