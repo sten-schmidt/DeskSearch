@@ -1,4 +1,4 @@
-package net.stenschmidt.desksearch.parser;
+package net.stenschmidt.desksearch.reader;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;

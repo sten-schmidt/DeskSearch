@@ -20,10 +20,10 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Properties;
 
-import net.stenschmidt.desksearch.parser.PdfReader;
-import net.stenschmidt.desksearch.parser.TextReader;
-import net.stenschmidt.desksearch.parser.DocReader;
-import net.stenschmidt.desksearch.parser.DocxReader;
+import net.stenschmidt.desksearch.reader.DocReader;
+import net.stenschmidt.desksearch.reader.DocxReader;
+import net.stenschmidt.desksearch.reader.PdfReader;
+import net.stenschmidt.desksearch.reader.TextReader;
 
 public class DeskSearch {
 

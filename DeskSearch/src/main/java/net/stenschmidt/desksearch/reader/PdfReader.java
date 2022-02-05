@@ -1,4 +1,4 @@
-package net.stenschmidt.desksearch.parser;
+package net.stenschmidt.desksearch.reader;
 
 import java.io.File;
 import java.io.IOException;
