@@ -9,7 +9,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -45,6 +44,9 @@ public class DeskSearch {
                 System.out.println("Create new Database-File");
                 System.out.println("java -jar DeskSearch.jar setup");
                 System.out.println("");
+                System.out.println("Compact the Database-File");
+                System.out.println("java -jar DeskSearch.jar compact");
+                System.out.println("");
                 System.out.println("Start H2 Database-Server");
                 System.out.println("java -jar DeskSearch.jar server");
                 System.out.println("");
@@ -76,15 +78,28 @@ public class DeskSearch {
                 break;
             case "setup":
                 deskSearch.setup();
+                break;
+            case "compact":
+                deskSearch.compact();
+                break;
             case "index":
                 String path = args[1].trim();
                 System.out.print("Indexing " + path + "...");
                 if (new File(path).exists()) {
                     deskSearch.index(path);
                 }
+                break;
             }
         } catch (Exception ex) {
             ex.printStackTrace();
+        }
+    }
+
+    void compact() throws URISyntaxException, SQLException {
+        String setupConnection = "jdbc:h2:" + getInstallDir() + "/DeskSearch.db";
+        try (var con = DriverManager.getConnection(setupConnection, "", ""); var stm = con.createStatement();) {
+            String sqlCmd = "shutdown compact;";
+            stm.execute(sqlCmd);
         }
     }
 
