@@ -39,7 +39,7 @@ public class DeskSearch {
         try {
 
             if (args.length == 0) {
-                System.out.println("Usage");
+                System.out.println("DeskSearch usage");
                 System.out.println("====================================================================");
                 System.out.println("Create new Database-File");
                 System.out.println("java -jar DeskSearch.jar setup");
@@ -181,6 +181,10 @@ public class DeskSearch {
                         }
 
                         switch (fileExtension) {
+                        /*
+                         * TODO case ".eml" case ".html" case ".htm" case ".7z" case ".zip" case ".tar"
+                         * case ".tar.gz" case ".tar.bz2"
+                         */
                         case ".pdf":
                             fulltext = PdfReader.readPDF(file.toString());
                             break;
@@ -216,16 +220,40 @@ public class DeskSearch {
                             }
                             break;
                         case ".txt":
+                        case ".log":
                         case ".info":
                         case ".nfo":
                         case ".html":
                         case ".htm":
                         case ".xml":
+                        case ".bat":
+                        case ".cmd":
+                        case ".ps1":
+                        case ".sh":
+                        case ".py":
+                        case ".java":
+                        case ".properties":
                             try {
                                 fulltext = new TextReader().getText(file.toString());
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
+                            break;
+                        case ".xls":
+                            try {
+                                fulltext = new XlsReader().getText(file.toString());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            break;
+                        case ".xlsx":
+                            try {
+                                fulltext = new XlsxReader().getText(file.toString());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            break;
+
                         }
 
                         try (PreparedStatement st = con.prepareStatement(insertQuery)) {
@@ -258,9 +286,6 @@ public class DeskSearch {
                     var stm = con.createStatement();) {
 
                 String query = "SELECT SCHEMA, COLUMNS, KEYS, SCORE, ID, NAME, PATH, BYTES, CREATED, MODIFIED, ACCESSED FROM FT_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE F.ID=FT.KEYS[1];";
-                // String query = "SELECT SCHEMA, COLUMNS, KEYS, SCORE, ID, NAME, PATH, BYTES,
-                // CREATED, MODIFIED, ACCESSED FROM FTL_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE
-                // F.ID=FT.KEYS[1];";
 
                 try (PreparedStatement st = con.prepareStatement(query)) {
                     st.setString(1, searchStrings);
