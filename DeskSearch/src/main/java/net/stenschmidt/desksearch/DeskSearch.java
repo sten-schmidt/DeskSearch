@@ -201,6 +201,7 @@ public class DeskSearch {
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
+                            break;
                         case ".dotx":
                         case ".dotm":
                         case ".docx":
