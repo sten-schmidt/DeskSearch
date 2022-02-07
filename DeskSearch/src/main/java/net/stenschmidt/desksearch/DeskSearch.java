@@ -58,6 +58,9 @@ public class DeskSearch {
                 System.out.println("Query the fulltext index");
                 System.out.println("java -jar DeskSearch.jar search foo [bar fuzz bazz]");
                 System.out.println("");
+                System.out.println("Query existing words from index using wildcards");
+                System.out.println("java -jar DeskSearch.jar words %JAVA%");
+                System.out.println("");
                 System.exit(-1);
             }
 
@@ -77,6 +80,10 @@ public class DeskSearch {
                 String[] searchArgs = new String[args.length - 1];
                 System.arraycopy(args, 1, searchArgs, 0, searchArgs.length);
                 deskSearch.search(searchArgs);
+                break;
+            case "words":
+                // After the 'words' command all strings are searchstrings.
+                deskSearch.findWords(args[1]);
                 break;
             case "setup":
                 deskSearch.setup();
@@ -309,6 +316,36 @@ public class DeskSearch {
             System.out.println(ex.toString());
         }
 
+    }
+
+    void findWords(String searchString) {
+        try {
+            
+            if (searchString.length() > 0) {
+                searchString = searchString.toUpperCase();
+            }
+            
+            try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
+                    Statement stm = con.createStatement();) {
+
+                String query = "select NAME from FT.WORDS where NAME like '" + searchString + "';";
+
+                try (PreparedStatement st = con.prepareStatement(query)) {
+                    //st.setString(1, searchString);
+                    ResultSet rs = st.executeQuery();
+
+                    int count = 0;
+                    if (null != rs) {
+                        while (rs.next()) {
+                            System.out.println(++count + ": " + rs.getString("NAME"));
+                        }
+                    }
+                }
+
+            }
+        } catch (Exception ex) {
+            System.out.println(ex.toString());
+        }
     }
 
     static String getInstallDir() throws URISyntaxException {
