@@ -12,10 +12,12 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.Properties;
 
@@ -97,7 +99,8 @@ public class DeskSearch {
 
     void compact() throws URISyntaxException, SQLException {
         String setupConnection = "jdbc:h2:" + getInstallDir() + "/DeskSearch.db";
-        try (var con = DriverManager.getConnection(setupConnection, "", ""); var stm = con.createStatement();) {
+        try (Connection con = DriverManager.getConnection(setupConnection, "", "");
+                Statement stm = con.createStatement();) {
             String sqlCmd = "shutdown compact;";
             stm.execute(sqlCmd);
         }
@@ -109,7 +112,8 @@ public class DeskSearch {
             String setupConnection = "jdbc:h2:" + getInstallDir() + "/DeskSearch.db";
             String sqlCmd = "";
             System.out.println("Setup Connection: " + setupConnection);
-            try (var con = DriverManager.getConnection(setupConnection, "", ""); var stm = con.createStatement();) {
+            try (Connection con = DriverManager.getConnection(setupConnection, "", "");
+                    Statement stm = con.createStatement();) {
                 sqlCmd = "create table files(id bigint auto_increment primary key, name varchar(255), path varchar(4000), fulltext varchar(1048576), bytes bigint, created timestamp, modified timestamp, accessed timestamp, indexed timestamp);";
                 stm.execute(sqlCmd);
 
@@ -146,8 +150,8 @@ public class DeskSearch {
     void index(String path) {
         try {
             Convert convert = new Convert();
-            try (var con = DriverManager.getConnection(properties.getProperty("url"));
-                    var stm = con.createStatement();) {
+            try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
+                    Statement stm = con.createStatement();) {
 
                 try (PreparedStatement st = con.prepareStatement("delete from FILES where PATH like ? ESCAPE '!'")) {
                     st.setString(1, path + "%");
@@ -283,8 +287,8 @@ public class DeskSearch {
         String searchStrings = String.join(" ", searchArgs);
         System.out.println("Searching: " + searchStrings);
         try {
-            try (var con = DriverManager.getConnection(properties.getProperty("url"));
-                    var stm = con.createStatement();) {
+            try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
+                    Statement stm = con.createStatement();) {
 
                 String query = "SELECT SCHEMA, COLUMNS, KEYS, SCORE, ID, NAME, PATH, BYTES, CREATED, MODIFIED, ACCESSED FROM FT_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE F.ID=FT.KEYS[1];";
 
@@ -325,7 +329,7 @@ public class DeskSearch {
     }
 
     static void parseProperties() throws FileNotFoundException, IOException {
-        try (var stream = new BufferedInputStream(new FileInputStream(propertiesFile));) {
+        try (BufferedInputStream stream = new BufferedInputStream(new FileInputStream(propertiesFile));) {
             properties.load(stream);
         }
     }
