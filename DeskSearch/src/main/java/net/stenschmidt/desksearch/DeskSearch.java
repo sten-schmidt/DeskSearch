@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.Connection;
@@ -154,6 +155,15 @@ public class DeskSearch {
         }
     }
 
+    /*
+    #REINDEX
+    # -> TimeStampNow merken
+    # -> Query Path already exists
+    #    -> Ja -> Update
+    #    -> No -> Insert
+    # -> Delete from files where indexed < TimeStampNow
+    */
+    
     void index(String path) {
         try {
             Convert convert = new Convert();
@@ -181,92 +191,7 @@ public class DeskSearch {
                                 .append("(name, path, fulltext, created, modified, accessed, bytes, indexed) values ")
                                 .append("(?,?,?,?,?,?,?,?);").toString();
 
-                        String fulltext = "";
-                        String fileExtension = "";
-
-                        try {
-                            int dotPos = file.toString().lastIndexOf('.');
-                            fileExtension = file.toString().toLowerCase().substring(dotPos);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-
-                        switch (fileExtension) {
-                        /*
-                         * TODO case ".eml" case ".html" case ".htm" case ".7z" case ".zip" case ".tar"
-                         * case ".tar.gz" case ".tar.bz2"
-                         */
-                        case ".pdf":
-                            fulltext = PdfReader.readPDF(file.toString());
-                            break;
-                        case ".pptx":
-                            try {
-                                fulltext = new PptxReader().getText(file.toString());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                            break;
-                        case ".ppt":
-                            try {
-                                fulltext = new PptReader().getText(file.toString());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                            break;
-                        case ".dotx":
-                        case ".dotm":
-                        case ".docx":
-                        case ".docm":
-                            try {
-                                fulltext = new DocxReader().getText(file.toString());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                            break;
-                        case ".dot":
-                        case ".doc":
-                            try {
-                                fulltext = new DocReader().getText(file.toString());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                            break;
-                        case ".txt":
-                        case ".log":
-                        case ".info":
-                        case ".nfo":
-                        case ".html":
-                        case ".htm":
-                        case ".xml":
-                        case ".bat":
-                        case ".cmd":
-                        case ".ps1":
-                        case ".sh":
-                        case ".py":
-                        case ".java":
-                        case ".properties":
-                            try {
-                                fulltext = new TextReader().getText(file.toString());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                            break;
-                        case ".xls":
-                            try {
-                                fulltext = new XlsReader().getText(file.toString());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                            break;
-                        case ".xlsx":
-                            try {
-                                fulltext = new XlsxReader().getText(file.toString());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                            break;
-
-                        }
+                        String fulltext = getFulltext(file);
 
                         try (PreparedStatement st = con.prepareStatement(insertQuery)) {
                             st.setString(1, file.getFileName().toString());
@@ -288,6 +213,96 @@ public class DeskSearch {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    String getFulltext(Path file) throws IOException {
+        String fulltext = "";
+        String fileExtension = "";
+
+        try {
+            int dotPos = file.toString().lastIndexOf('.');
+            fileExtension = file.toString().toLowerCase().substring(dotPos);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        switch (fileExtension) {
+        /*
+         * TODO case ".eml" case ".html" case ".htm" case ".7z" case ".zip" case ".tar"
+         * case ".tar.gz" case ".tar.bz2"
+         */
+        case ".pdf":
+            fulltext = PdfReader.readPDF(file.toString());
+            break;
+        case ".pptx":
+            try {
+                fulltext = new PptxReader().getText(file.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            break;
+        case ".ppt":
+            try {
+                fulltext = new PptReader().getText(file.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            break;
+        case ".dotx":
+        case ".dotm":
+        case ".docx":
+        case ".docm":
+            try {
+                fulltext = new DocxReader().getText(file.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            break;
+        case ".dot":
+        case ".doc":
+            try {
+                fulltext = new DocReader().getText(file.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            break;
+        case ".txt":
+        case ".log":
+        case ".info":
+        case ".nfo":
+        case ".html":
+        case ".htm":
+        case ".xml":
+        case ".bat":
+        case ".cmd":
+        case ".ps1":
+        case ".sh":
+        case ".py":
+        case ".java":
+        case ".properties":
+            try {
+                fulltext = new TextReader().getText(file.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            break;
+        case ".xls":
+            try {
+                fulltext = new XlsReader().getText(file.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            break;
+        case ".xlsx":
+            try {
+                fulltext = new XlsxReader().getText(file.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            break;
+
+        }
+        return fulltext;
     }
 
     void search(String... searchArgs) {
