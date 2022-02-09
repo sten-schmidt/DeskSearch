@@ -156,14 +156,10 @@ public class DeskSearch {
     }
 
     /*
-    #REINDEX
-    # -> TimeStampNow merken
-    # -> Query Path already exists
-    #    -> Ja -> Update
-    #    -> No -> Insert
-    # -> Delete from files where indexed < TimeStampNow
-    */
-    
+     * #REINDEX # -> TimeStampNow merken # -> Query Path already exists # -> Ja ->
+     * Update # -> No -> Insert # -> Delete from files where indexed < TimeStampNow
+     */
+
     void index(String path) {
         try {
             Convert convert = new Convert();
@@ -228,8 +224,8 @@ public class DeskSearch {
 
         switch (fileExtension) {
         /*
-         * TODO case ".eml" case ".html" case ".htm" case ".7z" case ".zip" case ".tar"
-         * case ".tar.gz" case ".tar.bz2"
+         * TODO case ".rtf" case ".7z" case ".zip" case ".tar" case ".tar.gz" case
+         * ".tar.bz2"
          */
         case ".pdf":
             fulltext = PdfReader.readPDF(file.toString());
@@ -272,6 +268,7 @@ public class DeskSearch {
         case ".nfo":
         case ".html":
         case ".htm":
+        case ".eml":
         case ".xml":
         case ".bat":
         case ".cmd":
@@ -312,7 +309,7 @@ public class DeskSearch {
             try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
                     Statement stm = con.createStatement();) {
 
-                String query = "SELECT SCHEMA, COLUMNS, KEYS, SCORE, ID, NAME, PATH, BYTES, CREATED, MODIFIED, ACCESSED FROM FT_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE F.ID=FT.KEYS[1];";
+                String query = "SELECT SCHEMA, COLUMNS, KEYS, SCORE, ID, NAME, PATH, BYTES, CREATED, MODIFIED, ACCESSED FROM FT_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE F.ID=FT.KEYS[1] ORDER BY PATH;";
 
                 try (PreparedStatement st = con.prepareStatement(query)) {
                     st.setString(1, searchStrings);
@@ -335,18 +332,18 @@ public class DeskSearch {
 
     void findWords(String searchString) {
         try {
-            
+
             if (searchString.length() > 0) {
                 searchString = searchString.toUpperCase();
             }
-            
+
             try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
                     Statement stm = con.createStatement();) {
 
                 String query = "select NAME from FT.WORDS where NAME like '" + searchString + "';";
 
                 try (PreparedStatement st = con.prepareStatement(query)) {
-                    //st.setString(1, searchString);
+                    // st.setString(1, searchString);
                     ResultSet rs = st.executeQuery();
 
                     int count = 0;
