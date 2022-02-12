@@ -20,9 +20,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 
 import net.stenschmidt.desksearch.reader.*;
+import net.stenschmidt.ui.DeskSearchGui;
 
 public class DeskSearch {
 
@@ -59,6 +63,9 @@ public class DeskSearch {
                 System.out.println("Query the fulltext index");
                 System.out.println("java -jar DeskSearch.jar search foo [bar fuzz bazz]");
                 System.out.println("");
+                System.out.println("Query the fulltext index with GUI");
+                System.out.println("java -jar DeskSearch.jar searchgui foo [bar fuzz bazz]");
+                System.out.println("");
                 System.out.println("Query existing words from index using wildcards");
                 System.out.println("java -jar DeskSearch.jar words %JAVA%");
                 System.out.println("");
@@ -76,11 +83,26 @@ public class DeskSearch {
             case "server":
                 deskSearch.startServer();
                 break;
-            case "search":
+            case "search": {
                 // After the 'search' command all strings are searchstrings.
                 String[] searchArgs = new String[args.length - 1];
                 System.arraycopy(args, 1, searchArgs, 0, searchArgs.length);
-                deskSearch.search(searchArgs);
+                // deskSearch.search(searchArgs);
+                List<SearchResult> searchResults = deskSearch.search(searchArgs);
+                searchResults.forEach(result -> {
+                    System.out.println(result.toString());
+                });
+            }
+                break;
+            case "searchgui": {
+                String[] searchArgs = new String[args.length - 1];
+                System.arraycopy(args, 1, searchArgs, 0, searchArgs.length);
+                String windowCaption = "DeskSearch: " + String.join(" ", searchArgs);
+                List<SearchResult> searchResults = deskSearch.search(searchArgs);
+                DeskSearchGui gui = new DeskSearchGui();
+                gui.show(searchResults, windowCaption);
+            }
+
                 break;
             case "words":
                 // After the 'words' command all strings are searchstrings.
@@ -302,7 +324,8 @@ public class DeskSearch {
         return fulltext;
     }
 
-    void search(String... searchArgs) {
+    List<SearchResult> search(String... searchArgs) {
+        List<SearchResult> result = new ArrayList<SearchResult>();
         String searchStrings = String.join(" ", searchArgs);
         System.out.println("Searching: " + searchStrings);
         try {
@@ -318,7 +341,8 @@ public class DeskSearch {
                     int count = 0;
                     if (null != rs) {
                         while (rs.next()) {
-                            System.out.println(++count + ": " + rs.getString("PATH"));
+                            // System.out.println(++count + ": " + rs.getString("PATH"));
+                            result.add(new SearchResult(String.valueOf(++count), rs.getString("PATH")));
                         }
                     }
                 }
@@ -327,7 +351,7 @@ public class DeskSearch {
         } catch (Exception ex) {
             System.out.println(ex.toString());
         }
-
+        return result;
     }
 
     void findWords(String searchString) {
