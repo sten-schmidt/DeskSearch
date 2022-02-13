@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -35,8 +34,8 @@ public class DeskSearch {
 
     static {
         try {
-            createProperties();
-            parseProperties();
+            //createProperties();
+            //parseProperties();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -44,6 +43,9 @@ public class DeskSearch {
 
     public static void main(String... args) {
         try {
+            if (new File(propertiesFile).exists()) {
+                parseProperties();
+            }
 
             if (args.length == 0) {
                 System.out.println("DeskSearch usage");
@@ -75,9 +77,6 @@ public class DeskSearch {
             String command = args[0].trim();
             DeskSearch deskSearch = new DeskSearch();
 
-            if (new File(propertiesFile).exists()) {
-                parseProperties();
-            }
 
             switch (command) {
             case "server":
@@ -136,7 +135,12 @@ public class DeskSearch {
         }
     }
 
-    void setup() throws SQLException, URISyntaxException {
+    void setup() throws SQLException, URISyntaxException, IOException {
+        createProperties();
+        if (new File(propertiesFile).exists()) {
+            parseProperties();
+        }
+
         String dbFilePath = properties.getProperty("dbfile");
         if (!new File(dbFilePath).exists()) {
             String setupConnection = "jdbc:h2:" + getInstallDir() + "/DeskSearch.db";
@@ -396,7 +400,8 @@ public class DeskSearch {
         if (!f.exists()) {
             try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(propertiesFile)));) {
                 out.write(String.format("dbfile = %s/%s\n", getInstallDir(), "DeskSearch.db"));
-                out.write(String.format("url = jdbc:h2:tcp://localhost/%s/DeskSearch.db\n", getInstallDir()));
+                out.write(String.format("#url = jdbc:h2:tcp://localhost/%s/DeskSearch.db\n", getInstallDir()));
+                out.write(String.format("url = jdbc:h2:%s/DeskSearch.db\n", getInstallDir()));
             }
         }
     }
