@@ -34,8 +34,8 @@ public class DeskSearch {
 
     static {
         try {
-            //createProperties();
-            //parseProperties();
+            // createProperties();
+            // parseProperties();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -76,7 +76,6 @@ public class DeskSearch {
 
             String command = args[0].trim();
             DeskSearch deskSearch = new DeskSearch();
-
 
             switch (command) {
             case "server":
@@ -119,6 +118,14 @@ public class DeskSearch {
                 if (new File(path).exists()) {
                     deskSearch.index(path);
                 }
+                break;
+            case "index2": {
+                String path2 = args[1].trim();
+                System.out.print("Indexing " + path2 + "...");
+                if (new File(path2).exists()) {
+                    deskSearch.index2(path2);
+                }
+            }
                 break;
             }
         } catch (Exception ex) {
@@ -185,6 +192,129 @@ public class DeskSearch {
      * #REINDEX # -> TimeStampNow merken # -> Query Path already exists # -> Ja ->
      * Update # -> No -> Insert # -> Delete from files where indexed < TimeStampNow
      */
+
+    void index2(String path) {
+        try {
+            Convert convert = new Convert();
+            try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
+                    Statement stm = con.createStatement();) {
+
+                Timestamp tsIndexRunStarted = new Timestamp(System.currentTimeMillis());
+
+                Files.walk(Paths.get(path)).filter(Files::isRegularFile).forEach(file -> {
+
+                    System.out.println(file);
+                    try {
+                        BasicFileAttributes fileAttributes = Files.readAttributes(file, BasicFileAttributes.class);
+
+                        Timestamp tsCreate = convert.toTimestamp(fileAttributes.creationTime());
+                        Timestamp tsModified = convert.toTimestamp(fileAttributes.lastModifiedTime());
+                        Timestamp tsAccess = convert.toTimestamp(fileAttributes.lastAccessTime());
+                        Timestamp tsNow = new Timestamp(System.currentTimeMillis());
+                        long fileSize = fileAttributes.size();
+
+                        String selectQuery = new StringBuilder()
+                                .append("SELECT bytes, created, modified, accessed FROM FILES where path = ?;")
+                                .toString();
+
+                        Boolean fileExistsInDb = false; //!!
+                        Boolean fileNotChanged = false; 
+
+                        try (PreparedStatement st = con.prepareStatement(selectQuery)) {
+                            st.setString(1, file.toString());
+                            try (ResultSet rs = st.executeQuery()) {
+                                if (rs.next()) {
+                                    long fileSizeDb = rs.getLong("bytes");
+                                    Timestamp tsCreatedDb = rs.getTimestamp("created");
+                                    Timestamp tsModifiedDb = rs.getTimestamp("modified");
+                                    Timestamp tsAccessedDb = rs.getTimestamp("accessed");
+
+                                    fileExistsInDb = true;
+                                    fileNotChanged = true;
+                                    fileNotChanged &= fileSizeDb == fileSize;
+                                    fileNotChanged &= tsCreatedDb.equals(tsCreate);
+                                    fileNotChanged &= tsModifiedDb.equals(tsModified);
+                                    // fileNotChanged &= tsAccessedDb.equals(tsAccess);
+
+                                    System.out.println(String.format("%s", fileNotChanged));
+                                }
+                            }
+                        }
+
+                        if (fileExistsInDb && fileNotChanged) {
+
+                            System.out.println("update indexed time for " + file);
+                            String updateQuery = new StringBuilder().append("update files set ").append("indexed = ? ")
+                                    .append("where path = ?;").toString();
+
+                            try (PreparedStatement st = con.prepareStatement(updateQuery)) {
+                                st.setTimestamp(1, tsNow);
+                                st.setString(2, file.toString());
+                                st.executeUpdate();
+                            }
+                        } else if (fileExistsInDb && !fileNotChanged) {
+
+                            System.out.println("update all for " + file);
+                            String updateQuery = new StringBuilder().append("update files set ")
+                                    .append("fulltext = ?, ").append("created = ?, ").append("modified = ?, ")
+                                    .append("accessed = ?, ").append("bytes = ?, ").append("indexed = ? ")
+                                    .append("where path = ?;").toString();
+
+                            String fulltext = getFulltext(file);
+                            try (PreparedStatement st = con.prepareStatement(updateQuery)) {
+                                st.setString(1, fulltext); // Fulltext
+                                st.setTimestamp(2, tsCreate);
+                                st.setTimestamp(3, tsModified);
+                                st.setTimestamp(4, tsAccess);
+                                st.setLong(5, fileSize);
+                                st.setTimestamp(6, tsNow);
+                                st.setString(7, file.toString());
+                                st.executeUpdate();
+                            }
+                        }
+
+                        if (!fileExistsInDb) {
+
+                            System.out.println("insert for " + file);
+                            String insertQuery = new StringBuilder().append("insert into files ").append(
+                                    "(name, path, fulltext, created, modified, accessed, bytes, indexed) values ")
+                                    .append("(?,?,?,?,?,?,?,?);").toString();
+
+                            String fulltext = getFulltext(file);
+                            try (PreparedStatement st = con.prepareStatement(insertQuery)) {
+                                st.setString(1, file.getFileName().toString());
+                                st.setString(2, file.toString());
+                                st.setString(3, fulltext); // Fulltext
+                                st.setTimestamp(4, tsCreate);
+                                st.setTimestamp(5, tsModified);
+                                st.setTimestamp(6, tsAccess);
+                                st.setLong(7, fileSize);
+                                st.setTimestamp(8, tsNow);
+                                st.executeUpdate();
+                            }
+
+                        }
+
+                    } catch (IOException | SQLException e) {
+                        e.printStackTrace();
+                    }
+                });
+
+                // delete old entries
+                String deleteQuery = new StringBuilder().append("delete from files ").append("where indexed < ?")
+                        .toString();
+
+                try (PreparedStatement st = con.prepareStatement(deleteQuery)) {
+                    st.setTimestamp(1, tsIndexRunStarted);
+                    st.executeUpdate();
+                }
+
+                System.out.println("done.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     void index(String path) {
         try {
