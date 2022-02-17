@@ -107,21 +107,22 @@ public class DeskSearch {
                 deskSearch.findWords(args[1]);
                 break;
             case "setup":
-                deskSearch.setup();
-                break;
+            //    deskSearch.setup();
+            //    break;
             case "setup2":
                 deskSearch.setup2();
                 break;
+            case "compress":
             case "compact":
                 deskSearch.compact();
                 break;
             case "index":
-                String path = args[1].trim();
-                System.out.print("Indexing " + path + "...");
-                if (new File(path).exists()) {
-                    deskSearch.index(path);
-                }
-                break;
+            //    String path = args[1].trim();
+            //    System.out.print("Indexing " + path + "...");
+            //    if (new File(path).exists()) {
+            //        deskSearch.index(path);
+            //    }
+            //    break;
             case "index2": {
                 String path2 = args[1].trim();
                 System.out.print("Indexing " + path2 + "...");
@@ -189,6 +190,7 @@ public class DeskSearch {
         }
     }
 
+    @Deprecated
     void setup() throws SQLException, URISyntaxException, IOException {
         createProperties();
         if (new File(propertiesFile).exists()) {
@@ -235,11 +237,6 @@ public class DeskSearch {
         }
     }
 
-    /*
-     * #REINDEX # -> TimeStampNow merken # -> Query Path already exists # -> Ja ->
-     * Update # -> No -> Insert # -> Delete from files where indexed < TimeStampNow
-     */
-
     void index2(String path) {
         try {
             Convert convert = new Convert();
@@ -250,7 +247,6 @@ public class DeskSearch {
 
                 Files.walk(Paths.get(path)).filter(Files::isRegularFile).forEach(file -> {
 
-                    System.out.println(file);
                     try {
                         BasicFileAttributes fileAttributes = Files.readAttributes(file, BasicFileAttributes.class);
 
@@ -260,11 +256,7 @@ public class DeskSearch {
                         Timestamp tsNow = new Timestamp(System.currentTimeMillis());
                         long fileSize = fileAttributes.size();
 
-                        // SELECT * FROM FILES F INNER JOIN FILES_METADATA FM ON FM.FILEID = F.ID;
-
                         String selectQuery = new StringBuilder()
-                                // .append("SELECT bytes, created, modified, accessed FROM FILES where path =
-                                // ?;")
                                 .append("SELECT fileid, bytes, created, modified, accessed FROM FILES_METADATA FM inner join FILES F on F.ID=FM.FILEID where F.PATH=?;")
                                 .toString();
 
@@ -288,15 +280,13 @@ public class DeskSearch {
                                     fileNotChanged &= tsCreatedDb.equals(tsCreate);
                                     fileNotChanged &= tsModifiedDb.equals(tsModified);
                                     // fileNotChanged &= tsAccessedDb.equals(tsAccess);
-
-                                    System.out.println(String.format("%s", fileNotChanged));
                                 }
                             }
                         }
 
                         if (fileExistsInDb && fileNotChanged) {
 
-                            System.out.println("update indexed time for " + file);
+                            System.out.println("[Checked] " + file);
                             String updateQuery = new StringBuilder().append("update files_metadata set ")
                                     .append("indexed = ? ").append("where fileid = ?;").toString();
 
@@ -307,7 +297,7 @@ public class DeskSearch {
                             }
                         } else if (fileExistsInDb && !fileNotChanged) {
 
-                            System.out.println("update all for " + file);
+                            System.out.println("[Changed] " + file);
                             String updateQuery1 = new StringBuilder().append("update files_metadata set ")
                                     .append("created = ?, ").append("modified = ?, ").append("accessed = ?, ")
                                     .append("bytes = ?, ").append("indexed = ? ").append("where fileid = ?;")
@@ -335,7 +325,7 @@ public class DeskSearch {
 
                         if (!fileExistsInDb) {
 
-                            System.out.println("insert for " + file);
+                            System.out.println("[New] " + file);
                             String insertQuery = "";
 
                             insertQuery = new StringBuilder().append("insert into files ")
@@ -378,7 +368,7 @@ public class DeskSearch {
 
                 // delete old entries
                 String selectOldEntriesQuery = new StringBuilder()
-                        .append("select fm.fileid from files_metadata fm inner join files f on f.id=fm.fileid ")
+                        .append("select fm.fileid, f.path from files_metadata fm inner join files f on f.id=fm.fileid ")
                         .append("where fm.indexed < ? and f.path like ? ESCAPE '!'").toString();
 
                 try (PreparedStatement st = con.prepareStatement(selectOldEntriesQuery)) {
@@ -387,7 +377,8 @@ public class DeskSearch {
                     try (ResultSet rs = st.executeQuery()) {
                         while (rs.next()) {
                             long fileId = rs.getLong("fileid");
-                            System.out.println("Deleting fileId: " + fileId);
+                            String file = rs.getString("path");
+                            System.out.println("[Deleted] " + file + " (" + fileId + ")");
                             String deleteQuery1 = "delete from files_metadata where fileID = ?";
                             String deleteQuery2 = "delete from files where id = ?";
 
@@ -411,6 +402,7 @@ public class DeskSearch {
         }
     }
 
+    @Deprecated
     void index(String path) {
         try {
             Convert convert = new Convert();
@@ -561,9 +553,6 @@ public class DeskSearch {
             try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
                     Statement stm = con.createStatement();) {
 
-                // String query = "SELECT SCHEMA, COLUMNS, KEYS, SCORE, ID, NAME, PATH, BYTES,
-                // CREATED, MODIFIED, ACCESSED FROM FT_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE
-                // F.ID=FT.KEYS[1] ORDER BY PATH;";
                 String query = "SELECT PATH FROM FT_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE F.ID=FT.KEYS[1] ORDER BY PATH;";
 
                 try (PreparedStatement st = con.prepareStatement(query)) {
@@ -573,7 +562,6 @@ public class DeskSearch {
                     int count = 0;
                     if (null != rs) {
                         while (rs.next()) {
-                            // System.out.println(++count + ": " + rs.getString("PATH"));
                             result.add(new SearchResult(String.valueOf(++count), rs.getString("PATH")));
                         }
                     }
