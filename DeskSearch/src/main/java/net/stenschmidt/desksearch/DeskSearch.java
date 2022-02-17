@@ -109,6 +109,9 @@ public class DeskSearch {
             case "setup":
                 deskSearch.setup();
                 break;
+            case "setup2":
+                deskSearch.setup2();
+                break;
             case "compact":
                 deskSearch.compact();
                 break;
@@ -139,6 +142,50 @@ public class DeskSearch {
                 Statement stm = con.createStatement();) {
             String sqlCmd = "shutdown compact;";
             stm.execute(sqlCmd);
+        }
+    }
+
+    void setup2() throws SQLException, URISyntaxException, IOException {
+        createProperties();
+        if (new File(propertiesFile).exists()) {
+            parseProperties();
+        }
+
+        String dbFilePath = properties.getProperty("dbfile");
+        if (!new File(dbFilePath).exists()) {
+            String setupConnection = "jdbc:h2:" + getInstallDir() + "/DeskSearch.db";
+            String sqlCmd = "";
+            System.out.println("Setup Connection: " + setupConnection);
+            try (Connection con = DriverManager.getConnection(setupConnection, "", "");
+                    Statement stm = con.createStatement();) {
+                sqlCmd = "create table files(id bigint auto_increment primary key, path varchar(4000) unique not null, fulltext varchar(1048576));";
+                stm.execute(sqlCmd);
+
+                sqlCmd = "create table files_metadata(id bigint auto_increment primary key, fileid bigint, bytes bigint, created timestamp, modified timestamp, accessed timestamp, indexed timestamp);";
+                stm.execute(sqlCmd);
+
+                sqlCmd = "alter table files_metadata " + "add foreign key (fileid) " + "references files(id);";
+                stm.execute(sqlCmd);
+
+                sqlCmd = "CREATE ALIAS IF NOT EXISTS FT_INIT FOR 'org.h2.fulltext.FullText.init';";
+                stm.execute(sqlCmd);
+
+                sqlCmd = "CALL FT_INIT();";
+                stm.execute(sqlCmd);
+
+                Timestamp tsNow = new Timestamp(System.currentTimeMillis());
+
+                String insertQuery = new StringBuilder().append("insert into files ").append("(path, fulltext) values ")
+                        .append("(?,?);").toString();
+
+                try (PreparedStatement st = con.prepareStatement(insertQuery)) {
+                    st.setString(1, "c:\\dummy.pdf");
+                    st.setString(2, "dummy foo bar"); // Fulltext
+                }
+
+                sqlCmd = "CALL FT_CREATE_INDEX('PUBLIC', 'FILES', 'PATH,FULLTEXT');";
+                stm.execute(sqlCmd);
+            }
         }
     }
 
@@ -213,17 +260,23 @@ public class DeskSearch {
                         Timestamp tsNow = new Timestamp(System.currentTimeMillis());
                         long fileSize = fileAttributes.size();
 
+                        // SELECT * FROM FILES F INNER JOIN FILES_METADATA FM ON FM.FILEID = F.ID;
+
                         String selectQuery = new StringBuilder()
-                                .append("SELECT bytes, created, modified, accessed FROM FILES where path = ?;")
+                                // .append("SELECT bytes, created, modified, accessed FROM FILES where path =
+                                // ?;")
+                                .append("SELECT fileid, bytes, created, modified, accessed FROM FILES_METADATA FM inner join FILES F on F.ID=FM.FILEID where F.PATH=?;")
                                 .toString();
 
-                        Boolean fileExistsInDb = false; //!!
-                        Boolean fileNotChanged = false; 
+                        Boolean fileExistsInDb = false; // !!
+                        Boolean fileNotChanged = false;
+                        long fileId = 0;
 
                         try (PreparedStatement st = con.prepareStatement(selectQuery)) {
                             st.setString(1, file.toString());
                             try (ResultSet rs = st.executeQuery()) {
                                 if (rs.next()) {
+                                    fileId = rs.getLong("fileid");
                                     long fileSizeDb = rs.getLong("bytes");
                                     Timestamp tsCreatedDb = rs.getTimestamp("created");
                                     Timestamp tsModifiedDb = rs.getTimestamp("modified");
@@ -244,31 +297,38 @@ public class DeskSearch {
                         if (fileExistsInDb && fileNotChanged) {
 
                             System.out.println("update indexed time for " + file);
-                            String updateQuery = new StringBuilder().append("update files set ").append("indexed = ? ")
-                                    .append("where path = ?;").toString();
+                            String updateQuery = new StringBuilder().append("update files_metadata set ")
+                                    .append("indexed = ? ").append("where fileid = ?;").toString();
 
                             try (PreparedStatement st = con.prepareStatement(updateQuery)) {
                                 st.setTimestamp(1, tsNow);
-                                st.setString(2, file.toString());
+                                st.setLong(2, fileId);
                                 st.executeUpdate();
                             }
                         } else if (fileExistsInDb && !fileNotChanged) {
 
                             System.out.println("update all for " + file);
-                            String updateQuery = new StringBuilder().append("update files set ")
-                                    .append("fulltext = ?, ").append("created = ?, ").append("modified = ?, ")
-                                    .append("accessed = ?, ").append("bytes = ?, ").append("indexed = ? ")
-                                    .append("where path = ?;").toString();
+                            String updateQuery1 = new StringBuilder().append("update files_metadata set ")
+                                    .append("created = ?, ").append("modified = ?, ").append("accessed = ?, ")
+                                    .append("bytes = ?, ").append("indexed = ? ").append("where fileid = ?;")
+                                    .toString();
 
-                            String fulltext = getFulltext(file);
-                            try (PreparedStatement st = con.prepareStatement(updateQuery)) {
-                                st.setString(1, fulltext); // Fulltext
-                                st.setTimestamp(2, tsCreate);
-                                st.setTimestamp(3, tsModified);
-                                st.setTimestamp(4, tsAccess);
-                                st.setLong(5, fileSize);
-                                st.setTimestamp(6, tsNow);
-                                st.setString(7, file.toString());
+                            try (PreparedStatement st = con.prepareStatement(updateQuery1)) {
+                                st.setTimestamp(1, tsCreate);
+                                st.setTimestamp(2, tsModified);
+                                st.setTimestamp(3, tsAccess);
+                                st.setLong(4, fileSize);
+                                st.setTimestamp(5, tsNow);
+                                st.setLong(6, fileId);
+                                st.executeUpdate();
+                            }
+
+                            String updateQuery2 = new StringBuilder().append("update files set ")
+                                    .append("fulltext = ? ").append("where id = ?;").toString();
+
+                            try (PreparedStatement st = con.prepareStatement(updateQuery2)) {
+                                st.setString(1, getFulltext(file));
+                                st.setLong(2, fileId);
                                 st.executeUpdate();
                             }
                         }
@@ -276,20 +336,36 @@ public class DeskSearch {
                         if (!fileExistsInDb) {
 
                             System.out.println("insert for " + file);
-                            String insertQuery = new StringBuilder().append("insert into files ").append(
-                                    "(name, path, fulltext, created, modified, accessed, bytes, indexed) values ")
-                                    .append("(?,?,?,?,?,?,?,?);").toString();
+                            String insertQuery = "";
 
-                            String fulltext = getFulltext(file);
+                            insertQuery = new StringBuilder().append("insert into files ")
+                                    .append("(path, fulltext) values ").append("(?,?);").toString();
+
+                            fileId = 0;
+                            try (PreparedStatement st = con.prepareStatement(insertQuery,
+                                    Statement.RETURN_GENERATED_KEYS)) {
+                                st.setString(1, file.toString());
+                                st.setString(2, getFulltext(file));
+                                st.executeUpdate();
+                                ResultSet generatedKeys = st.getGeneratedKeys();
+                                if (generatedKeys.next()) {
+                                    fileId = generatedKeys.getLong(1);
+                                } else {
+                                    // Throw exception?
+                                }
+                            }
+
+                            insertQuery = new StringBuilder().append("insert into files_metadata ")
+                                    .append("(fileid, created, modified, accessed, bytes, indexed) values ")
+                                    .append("(?,?,?,?,?,?);").toString();
+
                             try (PreparedStatement st = con.prepareStatement(insertQuery)) {
-                                st.setString(1, file.getFileName().toString());
-                                st.setString(2, file.toString());
-                                st.setString(3, fulltext); // Fulltext
-                                st.setTimestamp(4, tsCreate);
-                                st.setTimestamp(5, tsModified);
-                                st.setTimestamp(6, tsAccess);
-                                st.setLong(7, fileSize);
-                                st.setTimestamp(8, tsNow);
+                                st.setLong(1, fileId);
+                                st.setTimestamp(2, tsCreate);
+                                st.setTimestamp(3, tsModified);
+                                st.setTimestamp(4, tsAccess);
+                                st.setLong(5, fileSize);
+                                st.setTimestamp(6, tsNow);
                                 st.executeUpdate();
                             }
 
@@ -301,12 +377,31 @@ public class DeskSearch {
                 });
 
                 // delete old entries
-                String deleteQuery = new StringBuilder().append("delete from files ").append("where indexed < ?")
-                        .toString();
+                String selectOldEntriesQuery = new StringBuilder()
+                        .append("select fm.fileid from files_metadata fm inner join files f on f.id=fm.fileid ")
+                        .append("where fm.indexed < ? and f.path like ? ESCAPE '!'").toString();
 
-                try (PreparedStatement st = con.prepareStatement(deleteQuery)) {
+                try (PreparedStatement st = con.prepareStatement(selectOldEntriesQuery)) {
                     st.setTimestamp(1, tsIndexRunStarted);
-                    st.executeUpdate();
+                    st.setString(2, path + "%");
+                    try (ResultSet rs = st.executeQuery()) {
+                        while (rs.next()) {
+                            long fileId = rs.getLong("fileid");
+                            System.out.println("Deleting fileId: " + fileId);
+                            String deleteQuery1 = "delete from files_metadata where fileID = ?";
+                            String deleteQuery2 = "delete from files where id = ?";
+
+                            try (PreparedStatement statement = con.prepareStatement(deleteQuery1)) {
+                                statement.setLong(1, fileId);
+                                statement.executeUpdate();
+                            }
+
+                            try (PreparedStatement statement = con.prepareStatement(deleteQuery2)) {
+                                statement.setLong(1, fileId);
+                                statement.executeUpdate();
+                            }
+                        }
+                    }
                 }
 
                 System.out.println("done.");
@@ -466,7 +561,10 @@ public class DeskSearch {
             try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
                     Statement stm = con.createStatement();) {
 
-                String query = "SELECT SCHEMA, COLUMNS, KEYS, SCORE, ID, NAME, PATH, BYTES, CREATED, MODIFIED, ACCESSED FROM FT_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE F.ID=FT.KEYS[1] ORDER BY PATH;";
+                // String query = "SELECT SCHEMA, COLUMNS, KEYS, SCORE, ID, NAME, PATH, BYTES,
+                // CREATED, MODIFIED, ACCESSED FROM FT_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE
+                // F.ID=FT.KEYS[1] ORDER BY PATH;";
+                String query = "SELECT PATH FROM FT_SEARCH_DATA(?, 0, 0) FT, FILES F WHERE F.ID=FT.KEYS[1] ORDER BY PATH;";
 
                 try (PreparedStatement st = con.prepareStatement(query)) {
                     st.setString(1, searchStrings);
