@@ -1,4 +1,4 @@
-package net.stenschmidt.ui;
+package net.stenschmidt.desksearch.ui;
 
 import java.util.ArrayList;
 import java.util.List;

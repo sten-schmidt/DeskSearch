@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Properties;
 
 import net.stenschmidt.desksearch.reader.*;
-import net.stenschmidt.ui.DeskSearchGui;
+import net.stenschmidt.desksearch.ui.DeskSearchGui;
 
 public class DeskSearch {
 

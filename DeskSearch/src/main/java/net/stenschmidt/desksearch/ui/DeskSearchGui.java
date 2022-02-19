@@ -1,4 +1,4 @@
-package net.stenschmidt.ui;
+package net.stenschmidt.desksearch.ui;
 
 import java.util.List;
 
@@ -37,7 +37,10 @@ public class DeskSearchGui {
         selectionModel.addListSelectionListener(new ListSelectionListener() {
             public void valueChanged(ListSelectionEvent e) {
                 try {
-                    handleSelectionEvent(e);
+                    if (!e.getValueIsAdjusting()) {
+                            handleSelectionEvent(e);
+                      }
+                    
                 } catch (IOException e1) {
                     e1.printStackTrace();
                 }
