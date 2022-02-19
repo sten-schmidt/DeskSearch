@@ -32,15 +32,6 @@ public class DeskSearch {
     private static final String propertiesFile = "DeskSearch.properties";
     static Properties properties = new Properties();
 
-    static {
-        try {
-            // createProperties();
-            // parseProperties();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     public static void main(String... args) {
         try {
             if (new File(propertiesFile).exists()) {

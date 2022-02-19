@@ -15,6 +15,7 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.table.TableModel;
 
 import net.stenschmidt.desksearch.SearchResult;
+import java.awt.event.*;
 
 public class DeskSearchGui {
 
@@ -29,30 +30,38 @@ public class DeskSearchGui {
         table = new JTable(tableModel);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.getColumnModel().getColumn(0).setPreferredWidth(35);
-        //table.getColumnModel().getColumn(0).setWidth(50);
+        // table.getColumnModel().getColumn(0).setWidth(50);
         table.getColumnModel().getColumn(0).setMaxWidth(35);
         table.getColumnModel().getColumn(1).setPreferredWidth(700);
 
         ListSelectionModel selectionModel = table.getSelectionModel();
         selectionModel.addListSelectionListener(new ListSelectionListener() {
             public void valueChanged(ListSelectionEvent e) {
-                try {
-                    if (!e.getValueIsAdjusting()) {
-                            handleSelectionEvent(e);
-                      }
-                    
-                } catch (IOException e1) {
-                    e1.printStackTrace();
+                if (!e.getValueIsAdjusting()) {
+                    //handleSelectionEvent(e);
+                }
+            }
+        });
+
+//      protected void handleSelectionEvent(ListSelectionEvent e) throws IOException {
+//      openDocument();
+//  }
+
+        table.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    openDocument();
                 }
             }
         });
 
         frame.add(new JScrollPane(table), BorderLayout.CENTER);
-        frame.setSize(750, 200);
+
+        frame.setSize(1024, 400);
         frame.setVisible(true);
     }
 
-    protected void handleSelectionEvent(ListSelectionEvent e) throws IOException {
+    void openDocument() {
         int column = 1;
         int row = table.getSelectedRow();
         String value = table.getModel().getValueAt(row, column).toString();
