@@ -99,27 +99,17 @@ public class DeskSearch {
                 deskSearch.findWords(args[1]);
                 break;
             case "setup":
-            //    deskSearch.setup();
-            //    break;
-            case "setup2":
-                deskSearch.setup2();
+                deskSearch.setup();
                 break;
             case "compress":
             case "compact":
                 deskSearch.compact();
                 break;
-            case "index":
-            //    String path = args[1].trim();
-            //    System.out.print("Indexing " + path + "...");
-            //    if (new File(path).exists()) {
-            //        deskSearch.index(path);
-            //    }
-            //    break;
-            case "index2": {
+            case "index": {
                 String path2 = args[1].trim();
                 System.out.print("Indexing " + path2 + "...");
                 if (new File(path2).exists()) {
-                    deskSearch.index2(path2);
+                    deskSearch.index(path2);
                 }
             }
                 break;
@@ -138,7 +128,7 @@ public class DeskSearch {
         }
     }
 
-    void setup2() throws SQLException, URISyntaxException, IOException {
+    void setup() throws SQLException, URISyntaxException, IOException {
         createProperties();
         if (new File(propertiesFile).exists()) {
             parseProperties();
@@ -182,54 +172,8 @@ public class DeskSearch {
         }
     }
 
-    @Deprecated
-    void setup() throws SQLException, URISyntaxException, IOException {
-        createProperties();
-        if (new File(propertiesFile).exists()) {
-            parseProperties();
-        }
-
-        String dbFilePath = properties.getProperty("dbfile");
-        if (!new File(dbFilePath).exists()) {
-            String setupConnection = "jdbc:h2:" + getInstallDir() + "/DeskSearch.db";
-            String sqlCmd = "";
-            System.out.println("Setup Connection: " + setupConnection);
-            try (Connection con = DriverManager.getConnection(setupConnection, "", "");
-                    Statement stm = con.createStatement();) {
-                sqlCmd = "create table files(id bigint auto_increment primary key, name varchar(255), path varchar(4000), fulltext varchar(1048576), bytes bigint, created timestamp, modified timestamp, accessed timestamp, indexed timestamp);";
-                stm.execute(sqlCmd);
-
-                sqlCmd = "CREATE ALIAS IF NOT EXISTS FT_INIT FOR 'org.h2.fulltext.FullText.init';";
-                stm.execute(sqlCmd);
-
-                sqlCmd = "CALL FT_INIT();";
-                stm.execute(sqlCmd);
-
-                Timestamp tsNow = new Timestamp(System.currentTimeMillis());
-
-                String insertQuery = new StringBuilder().append("insert into files ")
-                        .append("(name, path, fulltext, created, modified, accessed, bytes, indexed) values ")
-                        .append("(?,?,?,?,?,?,?,?);").toString();
-
-                try (PreparedStatement st = con.prepareStatement(insertQuery)) {
-                    st.setString(1, "dummy");
-                    st.setString(2, "c:\\dummy.pdf");
-                    st.setString(3, "dummy foo bar"); // Fulltext
-                    st.setTimestamp(4, tsNow);
-                    st.setTimestamp(5, tsNow);
-                    st.setTimestamp(6, tsNow);
-                    st.setLong(7, 0);
-                    st.setTimestamp(8, tsNow);
-                    st.executeUpdate();
-                }
-
-                sqlCmd = "CALL FT_CREATE_INDEX('PUBLIC', 'FILES', 'NAME,PATH,FULLTEXT');";
-                stm.execute(sqlCmd);
-            }
-        }
-    }
-
-    void index2(String path) {
+    
+    void index(String path) {
         try {
             Convert convert = new Convert();
             try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
@@ -393,59 +337,7 @@ public class DeskSearch {
             e.printStackTrace();
         }
     }
-
-    @Deprecated
-    void index(String path) {
-        try {
-            Convert convert = new Convert();
-            try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
-                    Statement stm = con.createStatement();) {
-
-                try (PreparedStatement st = con.prepareStatement("delete from FILES where PATH like ? ESCAPE '!'")) {
-                    st.setString(1, path + "%");
-                    st.executeUpdate();
-                }
-
-                Files.walk(Paths.get(path)).filter(Files::isRegularFile).forEach(file -> {
-
-                    System.out.println(file);
-                    try {
-                        BasicFileAttributes fileAttributes = Files.readAttributes(file, BasicFileAttributes.class);
-
-                        Timestamp tsCreate = convert.toTimestamp(fileAttributes.creationTime());
-                        Timestamp tsModified = convert.toTimestamp(fileAttributes.lastModifiedTime());
-                        Timestamp tsAccess = convert.toTimestamp(fileAttributes.lastAccessTime());
-                        Timestamp tsNow = new Timestamp(System.currentTimeMillis());
-                        long fileSize = fileAttributes.size();
-
-                        String insertQuery = new StringBuilder().append("insert into files ")
-                                .append("(name, path, fulltext, created, modified, accessed, bytes, indexed) values ")
-                                .append("(?,?,?,?,?,?,?,?);").toString();
-
-                        String fulltext = getFulltext(file);
-
-                        try (PreparedStatement st = con.prepareStatement(insertQuery)) {
-                            st.setString(1, file.getFileName().toString());
-                            st.setString(2, file.toString());
-                            st.setString(3, fulltext); // Fulltext
-                            st.setTimestamp(4, tsCreate);
-                            st.setTimestamp(5, tsModified);
-                            st.setTimestamp(6, tsAccess);
-                            st.setLong(7, fileSize);
-                            st.setTimestamp(8, tsNow);
-                            st.executeUpdate();
-                        }
-                    } catch (IOException | SQLException e) {
-                        e.printStackTrace();
-                    }
-                });
-                System.out.println("done.");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
+    
     String getFulltext(Path file) throws IOException {
         String fulltext = "";
         String fileExtension = "";
