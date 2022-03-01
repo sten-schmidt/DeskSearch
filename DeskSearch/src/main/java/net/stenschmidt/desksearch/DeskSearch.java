@@ -54,6 +54,9 @@ public class DeskSearch {
                 System.out.println("Add files from path to the fulltext index");
                 System.out.println("java -jar DeskSearch.jar index <Path to files>");
                 System.out.println("");
+                System.out.println("Force update of all files in path");
+                System.out.println("java -jar DeskSearch.jar reindex <Path to files>");
+                System.out.println("");
                 System.out.println("Query the fulltext index");
                 System.out.println("java -jar DeskSearch.jar search foo [bar fuzz bazz]");
                 System.out.println("");
@@ -109,11 +112,22 @@ public class DeskSearch {
                 String path2 = args[1].trim();
                 System.out.print("Indexing " + path2 + "...");
                 if (new File(path2).exists()) {
-                    deskSearch.index(path2);
+                    deskSearch.index(path2, false);
                 }
-            }
                 break;
             }
+            
+            case "reindex": {
+                String path2 = args[1].trim();
+                System.out.print("Reindexing " + path2 + "...");
+                if (new File(path2).exists()) {
+                    deskSearch.index(path2, true);
+                }
+                break;
+            }
+                
+            }
+            
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -173,7 +187,7 @@ public class DeskSearch {
     }
 
     
-    void index(String path) {
+    void index(String path, boolean reindex) {
         try {
             Convert convert = new Convert();
             try (Connection con = DriverManager.getConnection(properties.getProperty("url"));
@@ -216,6 +230,7 @@ public class DeskSearch {
                                     fileNotChanged &= tsCreatedDb.equals(tsCreate);
                                     fileNotChanged &= tsModifiedDb.equals(tsModified);
                                     // fileNotChanged &= tsAccessedDb.equals(tsAccess);
+                                    fileNotChanged &= !reindex;
                                 }
                             }
                         }
@@ -233,7 +248,11 @@ public class DeskSearch {
                             }
                         } else if (fileExistsInDb && !fileNotChanged) {
 
-                            System.out.println("[Changed] " + file);
+                            if (reindex)
+                                System.out.println("[Reindex] " + file);
+                            else
+                                System.out.println("[Changed] " + file);
+                            
                             String updateQuery1 = new StringBuilder().append("update files_metadata set ")
                                     .append("created = ?, ").append("modified = ?, ").append("accessed = ?, ")
                                     .append("bytes = ?, ").append("indexed = ? ").append("where fileid = ?;")
