@@ -15,10 +15,8 @@ public class PdfReader {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        if(result.length() > 1048575) 
-            return result.substring(0, 1048575);
-        else 
-            return result;
+        
+        return result;
     }
 
 }

@@ -30,6 +30,7 @@ import net.stenschmidt.desksearch.ui.DeskSearchGui;
 public class DeskSearch {
 
     private static final String propertiesFile = "DeskSearch.properties";
+    final static int MAX_LENGTH_H2DB_CHARACTER_VARYING = 1048575;
     static Properties properties = new Properties();
 
     public static void main(String... args) {
@@ -533,8 +534,13 @@ public class DeskSearch {
             break;
 
         }
-        return fulltext;
+        
+        if(fulltext.length() > MAX_LENGTH_H2DB_CHARACTER_VARYING) 
+            return fulltext.substring(0, MAX_LENGTH_H2DB_CHARACTER_VARYING);
+        else 
+            return fulltext;
     }
+    
 
     List<SearchResult> search(String... searchArgs) {
         List<SearchResult> result = new ArrayList<SearchResult>();
