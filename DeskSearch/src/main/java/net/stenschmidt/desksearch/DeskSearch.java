@@ -186,6 +186,12 @@ public class DeskSearch {
         }
     }
 
+
+    long count_new = 0;
+    long count_checked = 0;
+    long count_changed = 0;
+    long count_reindexed = 0;
+    long count_deleted = 0;
     
     void index(String path, boolean reindex) {
         try {
@@ -195,11 +201,12 @@ public class DeskSearch {
 
                 Timestamp tsIndexRunStarted = new Timestamp(System.currentTimeMillis());
 
+                
                 Files.walk(Paths.get(path)).filter(Files::isRegularFile).forEach(file -> {
 
                     try {
                         BasicFileAttributes fileAttributes = Files.readAttributes(file, BasicFileAttributes.class);
-
+                        
                         Timestamp tsCreate = convert.toTimestamp(fileAttributes.creationTime());
                         Timestamp tsModified = convert.toTimestamp(fileAttributes.lastModifiedTime());
                         Timestamp tsAccess = convert.toTimestamp(fileAttributes.lastAccessTime());
@@ -238,6 +245,7 @@ public class DeskSearch {
                         if (fileExistsInDb && fileNotChanged) {
 
                             System.out.println("[Checked] " + file);
+                            count_checked++;
                             String updateQuery = new StringBuilder().append("update files_metadata set ")
                                     .append("indexed = ? ").append("where fileid = ?;").toString();
 
@@ -248,10 +256,14 @@ public class DeskSearch {
                             }
                         } else if (fileExistsInDb && !fileNotChanged) {
 
-                            if (reindex)
+                            if (reindex) {
                                 System.out.println("[Reindex] " + file);
-                            else
+                                count_reindexed++;
+                            }
+                            else {
                                 System.out.println("[Changed] " + file);
+                                count_changed++;
+                            }
                             
                             String updateQuery1 = new StringBuilder().append("update files_metadata set ")
                                     .append("created = ?, ").append("modified = ?, ").append("accessed = ?, ")
@@ -281,6 +293,7 @@ public class DeskSearch {
                         if (!fileExistsInDb) {
 
                             System.out.println("[New] " + file);
+                            count_new++;
                             String insertQuery = "";
 
                             insertQuery = new StringBuilder().append("insert into files ")
@@ -334,6 +347,7 @@ public class DeskSearch {
                             long fileId = rs.getLong("fileid");
                             String file = rs.getString("path");
                             System.out.println("[Deleted] " + file + " (" + fileId + ")");
+                            count_deleted++;
                             String deleteQuery1 = "delete from files_metadata where fileID = ?";
                             String deleteQuery2 = "delete from files where id = ?";
 
@@ -350,6 +364,11 @@ public class DeskSearch {
                     }
                 }
 
+                System.out.println("New: " + count_new);
+                System.out.println("Checked: " + count_checked);
+                System.out.println("Changed: " + count_changed);
+                System.out.println("Reindexed: " + count_reindexed);
+                System.out.println("Deleted: " + count_deleted);
                 System.out.println("done.");
             }
         } catch (Exception e) {
